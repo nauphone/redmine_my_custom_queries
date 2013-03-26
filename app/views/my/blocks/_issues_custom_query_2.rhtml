@@ -48,12 +48,12 @@
       <%= h query.project.name + " > " %>
     <% end -%>
     <%= h query.name %> (<%= query.issue_count %>)
-    <%= link_to_function '<img src="/images/edit.png" alt="Modify"/>', "$('#{options_key}-settings').toggle()", :style => 'vertical-align: middle', :title => 'Modify' %>
+    <%= link_to_function image_tag('edit.png'), "$('#{options_key}-settings').toggle()", :style => 'vertical-align: middle', :title => 'Modify' %>
   </h3>
 <% end %>
 
 <div id="<%= options_key %>-settings" style="<%= query.nil? ? "" : "display: none"%>">
-  <% form_tag '#' do %>
+  <% form_tag '#', :method => "get" do %>
     <%= label_tag "#{options_key}[query_id]", 'Query:' %>
     <%= select_tag("#{options_key}[query_id]", options_for_select(@available_queries, options[:id].to_i)) %>
     <%= label_tag "#{options_key}[limit]", 'Limit:' %>
