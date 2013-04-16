@@ -1,8 +1,6 @@
 require 'redmine'
 
-require 'dispatcher'
-
-Dispatcher.to_prepare do
+ActionDispatch::Callbacks.to_prepare  do
   MyController.send(:helper, :queries)
 end
 

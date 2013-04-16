@@ -1,0 +1,100 @@
+<%
+  options_key = :my_custom_query_3
+
+  if @user.pref[:others][options_key].nil?
+    @user.pref[:others][options_key] = {
+      :id => nil,
+      :limit => 100
+    }
+    @user.pref.save
+  end
+
+  if params[options_key]
+    @user.pref[:others][options_key][:id] = params[options_key][:query_id]
+    @user.pref[:others][options_key][:limit] = params[options_key][:limit] if params[options_key][:limit].to_i >= 1
+    @user.pref.save
+  end
+
+  options = @user.pref[:others][options_key]
+  unless options[:id].nil?
+    query = Query.find(options[:id])
+    order = query.sort_criteria.map{ |column|
+      [query.sortable_columns[column[0]], column[1]].join(' ')
+    }
+    issues = query.issues(
+      :include => [:assigned_to, :tracker, :priority, :category, :fixed_version],
+      :order => order,
+      :offset => 0,
+      :limit => @user.pref[:others][options_key][:limit].to_i
+    )
+  end
+
+  @available_queries ||= (Project.visible.all.collect { |project|
+    project.queries.find(:all, :conditions => { :user_id => User.current })
+  }.flatten.compact.map { |q|
+    [ "#{q.project.name} — #{q.name}", q.id ]
+  } + Query.find(:all, :conditions => { :user_id => User.current, :project_id => nil }).map { |q|
+    [ q.name, q.id ]
+  } + Query.find(:all, :conditions => { :is_public => true }).map { |q|
+    [ q.name, q.id ]
+  }).uniq
+
+%>
+<% if query.nil? %>
+  <h3>Select query</h3>
+<% else %>
+  <h3>
+    <% unless query.project.nil? -%>
+      <%= h query.project.name + " > " %>
+    <% end -%>
+    <%= h query.name %> (<%= query.issue_count %>)
+    <%= link_to_function image_tag('edit.png'), "$('##{options_key}-settings').toggle()", :style => 'vertical-align: middle', :title => 'Modify' %>
+  </h3>
+<% end %>
+
+<div id="<%= options_key %>-settings" style="<%= query.nil? ? "" : "display: none"%>">
+  <%= form_tag('#', :method => "get") do %>
+    <%= label_tag "#{options_key}[query_id]", 'Query:' %>
+    <%= select_tag("#{options_key}[query_id]", options_for_select(@available_queries, options[:id].to_i)) %>
+    <%= label_tag "#{options_key}[limit]", 'Limit:' %>
+    <%= text_field_tag "#{options_key}[limit]", options[:limit], :size => 4, :maxlength => 3 %>
+    <%= submit_tag 'Save' %>
+  <% end %>
+</div>
+
+<% unless query.nil? %>
+<div class="autoscroll">
+<table class="list issues">
+    <thead><tr>
+        <th class="checkbox hide-when-print"><%= link_to image_tag('toggle_check.png'), {}, :onclick => 'toggleIssuesSelection(Element.up(this, "form")); return false;',
+                                                           :title => "#{l(:button_check_all)}/#{l(:button_uncheck_all)}" %>
+                                                         </th>
+        <th>ID</th>
+        <% query.columns.each do |column| %>
+          <th><%= column.caption %></th>
+        <% end %>
+	</tr></thead>
+	<% previous_group = false %>
+	<tbody>
+	<% issue_list(issues) do |issue, level| -%>
+  <% if query.grouped? && (group = query.group_by_column.value(issue)) != previous_group %>
+    <% reset_cycle %>
+    <tr class="group open">
+    	<td colspan="<%= query.columns.size + 2 %>">
+    		<span class="expander" onclick="toggleRowGroup(this); return false;">&nbsp;</span>
+      	<%= group.blank? ? 'None' : column_content(query.group_by_column, issue) %>
+        <%= link_to_function("#{l(:button_collapse_all)}/#{l(:button_expand_all)}", "toggleAllRowGroups(this)", :class => 'toggle-all') %>
+    	</td>
+		</tr>
+		<% previous_group = group %>
+  <% end %>
+	<tr id="issue-<%= issue.id %>" class="hascontextmenu <%= cycle('odd', 'even') %> <%= issue.css_classes %> <%= level > 0 ? "idnt idnt-#{level}" : nil %>">
+	  <td class="checkbox hide-when-print"><%= check_box_tag("ids[]", issue.id, false, :id => nil) %></td>
+		<td class="id"><%= link_to issue.id, :controller => 'issues', :action => 'show', :id => issue %></td>
+        <% query.columns.each do |column| %><%= content_tag 'td', column_content(column, issue), :class => column.css_classes %><% end %>
+	</tr>
+	<% end -%>
+	</tbody>
+</table>
+</div>
+<% end %>

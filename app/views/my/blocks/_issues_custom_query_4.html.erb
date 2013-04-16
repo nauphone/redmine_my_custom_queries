@@ -1,5 +1,5 @@
 <%
-  options_key = :my_custom_query_1
+  options_key = :my_custom_query_4
 
   if @user.pref[:others][options_key].nil?
     @user.pref[:others][options_key] = {
@@ -25,7 +25,7 @@
       :include => [:assigned_to, :tracker, :priority, :category, :fixed_version],
       :order => order,
       :offset => 0,
-      :limit => 10
+      :limit => @user.pref[:others][options_key][:limit].to_i
     )
   end
 
@@ -48,12 +48,12 @@
       <%= h query.project.name + " > " %>
     <% end -%>
     <%= h query.name %> (<%= query.issue_count %>)
-    <%= link_to_function image_tag('edit.png'), "$('#{options_key}-settings').toggle()", :style => 'vertical-align: middle', :title => 'Modify' %>
+    <%= link_to_function image_tag('edit.png'), "$('##{options_key}-settings').toggle()", :style => 'vertical-align: middle', :title => 'Modify' %>
   </h3>
 <% end %>
 
 <div id="<%= options_key %>-settings" style="<%= query.nil? ? "" : "display: none"%>">
-  <% form_tag '#', :method => "get" do %>
+  <%= form_tag('#', :method => "get") do %>
     <%= label_tag "#{options_key}[query_id]", 'Query:' %>
     <%= select_tag("#{options_key}[query_id]", options_for_select(@available_queries, options[:id].to_i)) %>
     <%= label_tag "#{options_key}[limit]", 'Limit:' %>
